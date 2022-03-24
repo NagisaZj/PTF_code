@@ -5,7 +5,7 @@ from alg.optimizer import Optimizer
 from alg.source_actor import SourceActor as SA
 from alg.PRM_actor import PRM_actor as PRM_AC
 from util.ReplayBuffer import ReplayBuffer
-
+import pickle
 
 class PPO:
     def __init__(self, args, sess, logger):
@@ -313,18 +313,24 @@ class CAPS:
 class PTF_PPO:
     def __init__(self, n_actions, features, args, logger):
         self.args = args
-        self.SESS = tf.Session()
+        gpu_options = tf.GPUOptions(allow_growth=True)
+        self.SESS = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
         SOURCE_TASK = args['option_model_path']
         N_O = len(SOURCE_TASK)
         g = [tf.Graph() for i in range(N_O)]
         actor_sess = [tf.Session(graph=i) for i in g]
         self.actor = []
+        import json
+        with open('./config.txt','rb') as f:
+            config = pickle.load(f)
         for i in range(len(SOURCE_TASK)):
             with actor_sess[i].as_default():
                 with g[i].as_default():
-                    dqn = SA(SOURCE_TASK[i], args, actor_sess[i])
+                    # dqn = SA(SOURCE_TASK[i], args, actor_sess[i])
+                    dqn = SA(SOURCE_TASK[2], args, actor_sess[i],config,2)
                     self.actor.append(dqn)
 
+        print(N_O,len(self.actor))
         self.OT = CAPS(N_O, features, args, self.SESS, logger)
         self.PPO = PPO(args, self.SESS, logger)
 

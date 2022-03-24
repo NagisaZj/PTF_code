@@ -2,12 +2,17 @@ import numpy as np
 import tensorflow as tf
 import os
 import json
+import mtrl
+from mtrl.utils import config as config_utils
+import hydra,torch
 
 
 class SourceActor:
-    def __init__(self, policy_path, args, sess):
+    def __init__(self, policy_path, args, sess,config=None,id=None):
         self.args = args
         self.sess = sess
+        self.config = config
+        self.id = id
         self.actor = self.build_source_actor(policy_path)
         self.actor.load_net(policy_path)
 
@@ -16,22 +21,23 @@ class SourceActor:
         file_name = ''
         for dirPath, dirNames, fileNames in os.walk(par_path):
             #print(fileNames)
-            for fileName in fileNames:
-                if fileName == 'args.json':
-                    file_name = fileName
-                    break
-            if file_name != '':
-                break
-        file_path = par_path + "/" + file_name
-        with open(file_path, 'r') as f:
-            source_args = json.load(f)
+            source_args = None
         source_policy = self.args['source_policy']
+        source_policy = 'mtrl'
+        #config = config_utils.process_config(config)
+        #agent = mtrl_agent(self.args['action_dim'], self.args['features'], source_args['n_layer_1'],args, self.sess)
+        #return agent
         if source_policy == 'dqn':
             return DeepQNetwork(self.args['action_dim'], self.args['features'], source_args['n_layer_1'], self.sess)
         elif source_policy == 'a3c':
             return ACNet(self.args['action_dim'], self.args['features'], source_args, self.sess)
         elif source_policy == 'ppo':
             return PPO(self.args['action_dim'], self.args['features'], source_args, self.sess)
+        elif source_policy == 'mtrl':
+            #config = config_utils.process_config(self.config)
+            print('!!!!1',self.id)
+            agent = mtrl_agent(self.args['action_dim'], self.args['features'], self.config, self.id)
+            return agent
         else:
             raise Exception('no such source_policy named: ' + str(source_policy))
 
@@ -298,6 +304,104 @@ class PPO:
         variables_to_restore = [v for v in variables if v.name.split('/')[0] == self.args['policy']]
         saver = tf.train.Saver(variables_to_restore)
         saver.restore(self.SESS, path + ".ckpt")
+
+class mtrl_agent:
+    def __init__(self, action_dim, features, config, id = 0):
+        self.config = config
+        self.device = torch.device(self.config.setup.device)
+        print(features,action_dim)
+        print(config)
+        self.agent =hydra.utils.instantiate(
+                config.agent.builder,
+                env_obs_shape=(features,),
+                action_shape=(action_dim,),
+                action_range=[
+                    np.ones([action_dim])*-1,
+                    np.ones([action_dim]),
+                ],
+                device=self.device,
+            )
+        self.id = id
+        return
+
+    def _build_net(self, scope):
+        return
+
+    def choose_action_g(self, observation):
+        task_encoding = None  # type: ignore[assignment]
+        obs = np.array(observation)[None]
+        obs = torch.Tensor(obs).to(self.agent.device)
+        id = torch.Tensor([self.id]).int()
+        id = torch.unsqueeze(id, 0).to(self.agent.device)
+        task_info = self.agent.get_task_info(
+            task_encoding=task_encoding,
+            component_name="critic",
+            env_index=id,
+        )
+
+        obs = mtrl.agent.ds.mt_obs.MTObs(env_obs=obs,task_obs=id,task_info=task_info)
+        action = self.agent.sample_action(
+            multitask_obs=obs,
+            modes=[
+                'train',
+            ],
+        )
+        return action.data.cpu().numpy()
+
+
+    def choose_acton_prob(self, observation, action):
+        task_encoding = None  # type: ignore[assignment]
+        obs = np.array(observation)[None]
+        obs = torch.Tensor(obs).to(self.agent.device)
+        id = torch.Tensor([self.id]).int()
+        id = torch.unsqueeze(id, 0).to(self.agent.device)
+        task_info = self.agent.get_task_info(
+            task_encoding=task_encoding,
+            component_name="critic",
+            env_index=id,
+        )
+
+        obs = mtrl.agent.ds.mt_obs.MTObs(env_obs=obs, task_obs=id, task_info=task_info)
+        mu_e, pi_e, log_pi_e, log_std_e = self.agent.actor.forward(mtobs=obs,detach_encoder=True)
+        return [mu_e.data.cpu().numpy()[0],log_std_e.exp().data.cpu().numpy()[0]]
+        # if self.args['continuous_action']:
+        #     actions_value = self.SESS.run(self.a_prob, feed_dict={self.obs: observation})
+        #     actions_value = [actions_value[0][0], actions_value[1][0]]
+        # else:
+        #     actions_value = self.SESS.run(self.a_prob, feed_dict={self.obs: observation})[0]
+        # return actions_value
+
+    def is_from_source_actor(self, observation, action):
+        task_encoding = None  # type: ignore[assignment]
+        obs = np.array(observation)[None]
+        obs = torch.Tensor(obs).to(self.agent.device)
+        id = torch.Tensor([self.id]).int()
+        id = torch.unsqueeze(id, 0).to(self.agent.device)
+        # print(id)
+        task_info = self.agent.get_task_info(
+            task_encoding=task_encoding,
+            component_name="critic",
+            env_index=id,
+        )
+
+        obs = mtrl.agent.ds.mt_obs.MTObs(env_obs=obs, task_obs=id, task_info=task_info)
+        mu_e, pi_e, log_pi_e, log_std_e = self.agent.actor.forward(mtobs=obs, detach_encoder=True)
+
+        mu,sigma = mu_e.data.cpu().numpy()[0],log_std_e.exp().data.cpu().numpy()[0]
+        is_in = True
+        for i in range(len(action)):
+            if action[i] < sigma[i] - mu[i] or action[i] > sigma[i] + mu[i]:
+                is_in = False
+                break
+        return is_in
+
+
+    def load_net(self, path):
+        self.agent.load_latest_step(model_dir=path)
+        return
+
+
+
 
 if __name__ == '__main__':
     args = {}

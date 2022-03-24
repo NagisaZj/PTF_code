@@ -2,7 +2,7 @@
 learning_rate_a: 0.0003
 learning_rate_c: 0.0003
 reward_decay: 0.99
-batch_size: 32
+batch_size: 320
 output_graph: True
 save_model: True
 summary_output_times: 10
@@ -20,10 +20,10 @@ save_per_episodes: 2000
 # network
 policy: 'policy'
 old_policy: 'old_policy'
-n_layer_a_1: 20
-n_layer_a_2: 20
-n_layer_c_1: 20
-n_layer_c_2: 20
+n_layer_a_1: 200
+n_layer_a_2: 200
+n_layer_c_1: 200
+n_layer_c_2: 200
 temperature: 0.1
 
 # output

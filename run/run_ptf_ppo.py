@@ -10,7 +10,7 @@ def run(args, env, alg, logger):
     numGames = args['numGames']
     totalreward = np.zeros(numGames)
 
-    field = ['win', 'step', 'discounted_reward', 'discount_reward_mean', 'undiscounted_reward', 'reward_mean', 'e_greedy', 'episode']
+    field = ['win', 'step', 'discounted_reward', 'discount_reward_mean', 'undiscounted_reward', 'reward_mean', 'e_greedy', 'episode','success']
     OJ = OutputJson(field)
 
     for episode in range(numGames):
@@ -23,10 +23,14 @@ def run(args, env, alg, logger):
         episode_reward = 0
         episode_discount_reward = 0
         buffer_s, buffer_a, buffer_r, buffer_o, buffer_t = [], [], [], [], []
+        success = 0
         while True:
             action, v_pred = alg.PPO.choose_action(observation)
             # RL take action and get next observation and reward
-            observation_, reward, done, _ = env.step(action)
+            observation_, reward, done, info = env.step(action)
+            success += info['success']
+            # reward = reward if info['success'] else 0
+
             if args['continuous_action']:
                 opa = np.array(
                     [1 if i == option or alg.actor[i].is_from_source_actor(observation, action) else 0 for i in
@@ -86,14 +90,16 @@ def run(args, env, alg, logger):
                 mean_memory = np.mean(memory)
                 discount_mean_memory = np.mean(discount_memory)
                 # print(RL.memory_counter)
-
-                OJ.update([done, step, episode_discount_reward, discount_mean_memory, episode_reward, mean_memory, alg.OT.epsilon, episode])
+                success = (success > 0).__float__()
+                OJ.update([done, step, episode_discount_reward, discount_mean_memory, episode_reward, mean_memory, alg.OT.epsilon, episode,success])
                 OJ.print_first()
 
                 logger.write_tb_log('discount_reward', episode_discount_reward, episode)
                 logger.write_tb_log('discount_reward_mean', discount_mean_memory, episode)
                 logger.write_tb_log('undiscounted reward', episode_reward, episode)
                 logger.write_tb_log('reward_mean', mean_memory, episode)
+                logger.write_tb_log('success', success, episode)
+                success = 0
 
                 if total_step > args['learning_step']:
                     alg.OT.update_e()

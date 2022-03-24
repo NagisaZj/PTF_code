@@ -1,0 +1,19 @@
+# Reacher ptf_ppo
+CUDA_VISIBLE_DEVIECS=5 python main.py -a ptf_ppo -c ptf_ppo_conf -g reacher -d reacher_conf -n 10000 -e 1000 -s 2 -o adam n_layer_a_1=256 n_layer_c_1=256 learning_rate_a=3e-4 learning_rate_c=3e-4 learning_rate_o=1e-3 learning_rate_t=1e-3 e_greedy=0.95 e_greedy_increment=1e-2 replace_target_iter=1000 reward_decay=0.99 option_model_path=['source_policies/reacher/t1/model','source_policies/reacher/t2/model','source_policies/reacher/t3/model','source_policies/reacher/t4/model'] learning_step=10000 save_per_episodes=1000 task=hard c1=0.001 source_policy=a3c clip_value=10 batch_size=300 option_batch_size=16 reward_normalize=True done_reward=10 option_layer_1=20
+
+CUDA_VISIBLE_DEVIECS=5 python main.py -a ppo -c ppo_conf -g reacher -d reacher_conf -n 10000 -e 1000 -s 2  task=hard  -o adam n_layer_a_1=256 n_layer_c_1=256 learning_rate_a=3e-4 learning_rate_c=3e-4 learning_rate_o=1e-3 learning_rate_t=1e-3 e_greedy=0.95 e_greedy_increment=1e-2 replace_target_iter=1000 reward_decay=0.99 option_model_path=['source_policies/reacher/t1/model','source_policies/reacher/t2/model','source_policies/reacher/t3/model','source_policies/reacher/t4/model'] learning_step=10000 save_per_episodes=1000 c1=0.001 source_policy=a3c clip_value=10 batch_size=300 option_batch_size=16 reward_normalize=True done_reward=10 option_layer_1=20
+
+
+
+
+#source
+CUDA_VISIBLE_DEVICES=7 python main.py -a ppo -c ppo_conf -g metaworld -d reacher_conf -n 200000 -e 499 -s 2  task=push-v2  batch_size=600   reward_normalize=True done_reward=100    -o adam n_layer_a_1=256 n_layer_c_1=256 learning_rate_a=3e-4 learning_rate_c=3e-4 learning_rate_o=1e-3 learning_rate_t=1e-3 e_greedy=0.95 e_greedy_increment=1e-2 replace_target_iter=1000 reward_decay=0.99 option_model_path=['source_policies/reacher/t1/model','source_policies/reacher/t2/model','source_policies/reacher/t3/model','source_policies/reacher/t4/model'] learning_step=10000 save_per_episodes=1000 c1=0.001 source_policy=a3c clip_value=10 batch_size=300 option_batch_size=16 reward_normalize=True done_reward=10 option_layer_1=20
+
+CUDA_VISIBLE_DEVIECS=7 python main.py -a a3c -c a3c_conf -g metaworld -d reacher_conf -n 200000 -e 500 -s 40 task=reach-v2 batch_size=1200   learning_rate_a=3e-4 learning_rate_c=3e-4 ENTROPY_BETA=0.01 reward_normalize=True done_reward=100       -o adam n_layer_a_1=100 n_layer_c_1=100e_greedy=0.95 e_greedy_increment=1e-3 replace_target_iter=1000 option_batch_size=32 reward_decay=0.99 option_model_path=['source_policies/a3c/0.90.9/model','source_policies/a3c/0.90.2/model','source_policies/a3c/0.20.9/model'] learning_step=10000 save_per_episodes=1000 sequential_state=False continuous_action=True configuration=game/pinball_hard_single.cfg random_start=True start_position=[[0.6,0.4]] target_position=[0.1,0.1] c1=0.0005 source_policy=a3c save_model=True action_clip=1 reward_normalize=False
+
+
+#transfer
+CUDA_VISIBLE_DEVICES=3 python main.py -a ptf_ppo -c ptf_ppo_conf -g metaworld -d reacher_conf -n 2000000 -e 499 -s 2 task=pick-place-v2  -o adam n_layer_a_1=256 n_layer_c_1=256 learning_rate_a=3e-4 learning_rate_c=3e-4 learning_rate_o=1e-3 learning_rate_t=1e-3 e_greedy=0.95 e_greedy_increment=1e-2 replace_target_iter=1000 reward_decay=0.99 option_model_path=['/data2/zj/NewMTRL/logs/90f2497ff4cee27c0d30fbc66e6ba205f94808ba4ea16e057df58e73_issue_None_seed_43_2/model','/data2/zj/NewMTRL/logs/90f2497ff4cee27c0d30fbc66e6ba205f94808ba4ea16e057df58e73_issue_None_seed_43_2/model','/data2/zj/NewMTRL/logs/90f2497ff4cee27c0d30fbc66e6ba205f94808ba4ea16e057df58e73_issue_None_seed_253/model'] learning_step=10000 save_per_episodes=1000 c1=0.001 source_policy=a3c clip_value=10 batch_size=300 option_batch_size=16 reward_normalize=False done_reward=10 option_layer_1=20
+
+#0224: bin-picking
+#0228 pick-place houliangge only right expert

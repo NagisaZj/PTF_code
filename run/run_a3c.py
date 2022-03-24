@@ -24,9 +24,11 @@ class Worker(object):
             episode_reward = 0
             episode_discount_reward = 0
             step = 0
+            success = 0
             while True:
                 a = self.AC.choose_action(s)
-                s_, r, done, _ = self.env.step(a)
+                s_, r, done, info = self.env.step(a)
+                success += info['success']
                 s_ = np.array(s_)
                 if self.args['reward_normalize']:
                     normalize_reward = r / self.args['done_reward']
@@ -48,13 +50,16 @@ class Worker(object):
                     discount_memory[GLOBAL_EP % self.args['reward_memory']] = episode_discount_reward
                     mean_memory = np.mean(memory)
                     discount_mean_memory = np.mean(discount_memory)
-                    self.OJ.update([done, step, episode_discount_reward, discount_mean_memory, episode_reward, mean_memory, GLOBAL_EP])
+                    success = (success > 0).__float__()
+                    self.OJ.update([done, step, episode_discount_reward, discount_mean_memory, episode_reward, mean_memory, GLOBAL_EP,success])
                     self.OJ.print_first()
 
                     self.logger.write_tb_log('discount_reward', episode_discount_reward, GLOBAL_EP)
                     self.logger.write_tb_log('discount_reward_mean', discount_mean_memory, GLOBAL_EP)
                     self.logger.write_tb_log('undiscounted reward', episode_reward, GLOBAL_EP)
                     self.logger.write_tb_log('reward_mean', mean_memory, GLOBAL_EP)
+                    self.logger.write_tb_log('success', success, GLOBAL_EP)
+                    success = 0
 
                     GLOBAL_EP += 1
                     break
@@ -75,7 +80,7 @@ def run(args, env, a3c, logger):
     discount_memory = np.zeros(args['reward_memory'])
     GLOBAL_EP = 0
     GLOBAL_STEP = 0
-    field = ['win', 'step', 'discounted_reward', 'discount_reward_mean', 'undiscounted_reward', 'reward_mean', 'episode']
+    field = ['win', 'step', 'discounted_reward', 'discount_reward_mean', 'undiscounted_reward', 'reward_mean', 'episode','success']
     OJ = OutputJson(field)
 
     workers = []

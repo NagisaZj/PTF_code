@@ -10,7 +10,7 @@ def run(args, env, PPO, logger):
     numGames = args['numGames']
     totalreward = np.zeros(numGames)
 
-    field = ['win', 'step', 'discounted_reward', 'discount_reward_mean', 'undiscounted_reward', 'reward_mean', 'episode']
+    field = ['win', 'step', 'discounted_reward', 'discount_reward_mean', 'undiscounted_reward', 'reward_mean', 'episode','success']
     OJ = OutputJson(field)
 
     #if args['load_model']:
@@ -23,12 +23,15 @@ def run(args, env, PPO, logger):
         episode_discount_reward = 0
         step = 0
         buffer_s, buffer_a, buffer_r = [], [], []
+        success = 0
         while True:
             # RL choose action based on observation
             act, v_pred = PPO.choose_action(observation)
             # RL take action and get next observation and reward
-            observation_, reward, d, _ = env.step(act)
+            observation_, reward, d, info = env.step(act)
             done = d
+            success +=info['success']
+            reward = reward if info['success'] else 0
             if args['reward_normalize']:
                 normalize_reward = reward / args['done_reward']
             else:
@@ -64,14 +67,17 @@ def run(args, env, PPO, logger):
                 mean_memory = np.mean(memory)
                 discount_mean_memory = np.mean(discount_memory)
                 # print(RL.memory_counter)
-
-                OJ.update([done, step, episode_discount_reward, discount_mean_memory, episode_reward, mean_memory, episode])
+                success = (success>0).__float__()
+                OJ.update([done, step, episode_discount_reward, discount_mean_memory, episode_reward, mean_memory, episode,success])
                 OJ.print_first()
 
                 logger.write_tb_log('discount_reward', episode_discount_reward, episode)
                 logger.write_tb_log('discount_reward_mean', discount_mean_memory, episode)
                 logger.write_tb_log('undiscounted reward', episode_reward, episode)
                 logger.write_tb_log('reward_mean', mean_memory, episode)
+                logger.write_tb_log('success', success, episode)
+                success = 0
+
 
                 break
 
